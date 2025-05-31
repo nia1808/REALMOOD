@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🤔 AI Mood Detector</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    body {
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      font-family: 'Poppins', sans-serif;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #222;
+      text-align: center;
+      padding: 20px;
+      user-select: none;
+    }
+
+    h1 {
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 3rem;
+    }
+
+    #label {
+      font-size: 2rem;
+      font-weight: 600;
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    #suggestion {
+      font-size: 1.2rem;
+      margin-top: 20px;
+      color: #444;
+    }
+
+    #suggestion a {
+      color: #0077cc;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    #suggestion a:hover {
+      text-decoration: underline;
+    }
+
+    #webcam-container {
+      margin-top: 20px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      width: 250px;
+      height: 250px;
+    }
+
+    canvas {
+      width: 250px !important;
+      height: 250px !important;
+      border-radius: 12px;
+    }
+
+    .emoji {
+      font-size: 2.5rem;
+      animation: bounce 1.5s infinite;
+      display: inline-block;
+    }
+
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🤔 AI Mood Detector</h1>
+  <p>Your mood: 
+    <span id="label">Loading model...</span>
+  </p>
+  <div id="webcam-container"></div>
+  <p id="suggestion"></p>
+
+  <!-- TensorFlow.js and Teachable Machine libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    const URL = "./mood/";
+
+    let model, webcam;
+
+    // Suggestions object for moods
+    const suggestions = {
+      "happy": {
+        emoji: "😄",
+        text: `Feeling great! How about jamming to <a href="https://www.youtube.com/watch?v=ZbZSe6N_BXs" target="_blank" rel="noopener">Happy - Pharrell Williams</a>?`,
+      },
+      "sad": {
+        emoji: "😢",
+        text: `It's okay to feel down. Maybe watch <a href="https://www.youtube.com/watch?v=H8NKKpJFeAI" target="_blank" rel="noopener">Someone Like You - Adele</a> to unwind.`,
+      },
+      "angry": {
+        emoji: "😠",
+        text: `Take a deep breath! Try this <a href="https://www.youtube.com/watch?v=HgzGwKwLmgM" target="_blank" rel="noopener">Calm Down Video</a> to relax.`,
+      },
+      "default": {
+        emoji: "🤗",
+        text: `Try doing something you enjoy!`,
+      }
+    };
+
+    async function init() {
+      try {
+        model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+        console.log("Model loaded");
+      } catch (e) {
+        document.getElementById("label").innerText = "Failed to load model.";
+        console.error("Model load error:", e);
+        return;
+      }
+
+      webcam = new tmImage.Webcam(250, 250, true);
+      try {
+        await webcam.setup();
+        await webcam.play();
+        console.log("Webcam started");
+      } catch (e) {
+        document.getElementById("label").innerText = "Webcam access denied.";
+        console.error("Webcam error:", e);
+        return;
+      }
+
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+      predictLoop();
+    }
+
+    async function predictLoop() {
+      webcam.update();
+      const predictions = await model.predict(webcam.canvas);
+
+      // Sort descending by probability
+      predictions.sort((a, b) => b.probability - a.probability);
+      const topPrediction = predictions[0];
+
+      // Lowercase to match key in suggestions
+      const mood = topPrediction.className.toLowerCase();
+
+      const labelElem = document.getElementById("label");
+      const suggestionElem = document.getElementById("suggestion");
+
+      const moodData = suggestions[mood] || suggestions["default"];
+
+      labelElem.innerHTML = `<span class="emoji">${moodData.emoji}</span> ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
+      suggestionElem.innerHTML = moodData.text;
+
+      requestAnimationFrame(predictLoop);
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
+
+
+
+
+
